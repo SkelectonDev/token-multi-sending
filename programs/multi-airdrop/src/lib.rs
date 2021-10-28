@@ -89,11 +89,14 @@ pub mod multi_airdrop {
         amount: u64
     )->Result<()>{
 
+        if amount < 500000000000 {
+            return Err(ErrorCode::WrongAmount.into())
+        };
 //        let mut multiplier:i8 = 0;
         //Vec recipientsRange = ctx.accounts.airdrop.recipientsRange;
-        //if(amountLen >= recipientsRange[0] && amountLen <= recipientsRange[1]){
-           // multiplier = 1;
-        //}
+        // if(amountLen >= recipientsRange[0] && amountLen <= recipientsRange[1]){
+        //    multiplier = 1;
+        // }
 
         // if fee < ctx.accounts.airdrop_account.airdropFee*multiplier {
         //     return Err(ErrorCode::WrongAmount.into())
@@ -254,6 +257,8 @@ pub struct TransactionAccount {
 pub enum ErrorCode {
     #[msg("Request TokenAmount must little small than total Amount of account")]
     LowTokenAmount,
+    #[msg("Request Sending Fee is low")]
+    WrongAmount,
     #[msg("Restricted not owner")]
     NotOwner,
 }
