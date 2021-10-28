@@ -1,9 +1,10 @@
 
 
-declare_id!("6xi2VWSkxXcxoXm8snHunB3CyWfxLKrUPm3nC4EXRtk9");
+declare_id!("oXFNDVTZrDJvzBFEGjdhgyEh5Qt2fsXBAYTpdSAUxd5");
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
     program::{invoke},   
+    program_option::{COption},
 };
 
 use anchor_spl::token::{self, TokenAccount, Transfer, Mint, Token};
@@ -13,7 +14,9 @@ use spl_token::instruction::{close_account};
 
 pub mod airdrop_publishing_account {
     use solana_program::declare_id;
-    declare_id!("3vios4fgwoDcrq1Vys2g9t5gcQMcDAWg3PXDLBvKRGmZ");
+    declare_id!("F5rubj4Nk7EnvZb4Tr7dEnABoQxNMorwKhCgTFe2vS1v");
+    //4WQoyn9hYurEwjfzQP9HpD9EjnpAWgEFnhTjhwDyMvmg
+    //F5rubj4Nk7EnvZb4Tr7dEnABoQxNMorwKhCgTFe2vS1v
 }
 
 #[program]
@@ -29,78 +32,90 @@ pub mod multi_airdrop {
         let mut airdrop_account = ctx.accounts.airdrop.load_init()?;
 
         airdrop_account.payment_mint = *ctx.accounts.payment_mint.to_account_info().key;
-        airdrop_account.authority = *ctx.accounts.authority.to_account_info().key;
+        airdrop_account.fee_recipient = airdrop_publishing_account::ID;
         airdrop_account.airdrop_fee = fee;
         airdrop_account.airdrop_signer = *ctx.accounts.airdrop_signer.to_account_info().key;
         airdrop_account.airdrop_mint = *ctx.accounts.airdrop_mint.to_account_info().key;
         airdrop_account.bump = bump;
 
         airdrop_account.royalty_amount = 0;
-        //airdrop_account.recipientsRange[0] = 1;
-        //airdrop_account.recipientsRange[1] = 100;
+
+        airdrop_account.recipients_range[0] = 1;
+        airdrop_account.recipients_range[1] = 100;
+        airdrop_account.recipients_range[2] = 101;
+        airdrop_account.recipients_range[3] = 250;
+        airdrop_account.recipients_range[4] = 251;
+        airdrop_account.recipients_range[5] = 500;
+        airdrop_account.recipients_range[6] = 501;
+        airdrop_account.recipients_range[7] = 1000;
+
         Ok(())
     }
-    pub fn send_token(
-        ctx: Context<SendToken>,
-        multi_account: Vec<TransactionData>        
-    )->Result<()> {
-        //let mut accounter: TokenAccount;
-        // let accounter = TokenAccount::try_deserialize(buf);
-        // let user = accounter.to_account_info();
-        // (account,_a) = spl_token::state::Account::unpack(buf);
-    //    let tmp_account = &mut ctx.accounts.taker_token_account;
-    //    tmp_account.owner = multi_accounts[0].owner;
 
-        // let account = TokenAccount1 {
-        //     state: TokenAccountState1::Initialized,
-        //     mint: multi_accounts[0].mint,
-        //     owner: multi_accounts[0].owner,
-        //     amount : 1multi_accounts[0].amount,
-        //     ..Default::default()
-        // };
-
-        let multiaccount = &mut ctx.accounts.multi_sender;
-        multiaccount.owner = multi_account[0].owner;
-        multiaccount.mint = multi_account[0].mint;
-        multiaccount.amount = multi_account[0].amount;
-      
-        // let mut multiaccount = &mut ctx.accounts.taker_token_account;
-        // multiaccount.owner = multi_account[0].owner;
-        // multiaccount.mint = multi_account[0].mint;
-        // multiaccount.amount = multi_account[0].amount;
-            
-//        ctx.accounts.taker_token_account.
+    pub fn change_config(
+        ctx: Context<ChangeAirdrop>,
+        airdrop_fee : u64,
+        //fee_recipient : Pubkey,
+        //recipients_range : Vec<u16>
+    )-> Result<()>{
+        let mut airdrop_account = ctx.accounts.airdrop.load_mut()?;
+        airdrop_account.airdrop_fee = airdrop_fee;
         
-        //Airdrop Tokens to other receiver token accounts
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.creator_token_account.to_account_info(),
-            //to: ctx.accounts.taker_token_account.to_account_info(),
-            to: ctx.accounts.multi_sender.to_account_info(),
-            authority: ctx.accounts.distribution_authority.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.clone();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, 20)?;
-
-        Ok(())
+        //airdrop_account.fee_recipient = fee_recipient;
+        
+        for i in 0..7{
+         //       airdrop_account.recipients_range[i] = recipients_range[i];
+        }
+        Ok(())   
     }
-    pub fn send_wrap_sol(
+
+    // pub fn withdraw_native(
+    //     ctx: Context<WithdrawAirdrop>
+    // )-> Result<()>{
+
+    //         let seeds = &[
+    //             ctx.accounts.airdrop.to_account_info().key.as_ref(),
+    //             &[ctx.accounts.bumps.signer],
+    //         ];
+    //         let signer = &[&seeds[..]];
+    //         let cpi_accounts = Transfer {
+    //             from: ctx.accounts.pool_sol.to_account_info(),
+    //             to: ctx.accounts.creator_sol.to_account_info(),
+    //             authority: ctx.accounts.pool_signer.to_account_info(),
+    //         };
+    //         let cpi_program = ctx.accounts.token_program.clone();
+    //         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+    //         token::transfer(cpi_ctx, ctx.accounts.pool_sol.amount)?;
+
+    //         Ok(())
+    // }
+
+    pub fn token_airdrop(
         ctx: Context<SendWrapSol>,
-        amount: u64
+        recipients : u32,
+        fee_amount: u64
     )->Result<()>{
 
-        if amount < 500000000000 {
-            return Err(ErrorCode::WrongAmount.into())
-        };
-//        let mut multiplier:i8 = 0;
-        //Vec recipientsRange = ctx.accounts.airdrop.recipientsRange;
-        // if(amountLen >= recipientsRange[0] && amountLen <= recipientsRange[1]){
-        //    multiplier = 1;
+        let mut airdrop_account = ctx.accounts.airdrop.load_mut()?;
+
+        let mut multiplier = 0;
+        // if recipients >= airdrop_account.recipients_range[0] && recipients <= airdrop_account.recipients_range[1]{
+        //     multiplier = 1;
+        // } else if recipients >= airdrop_account.recipients_range[2] && recipients <= airdrop_account.recipients_range[3]{
+        //     multiplier = 2;
+        // } else if recipients >= airdrop_account.recipients_range[4] && recipients <= airdrop_account.recipients_range[5]{
+        //     multiplier = 3;
+        // } else if recipients >= airdrop_account.recipients_range[6] && recipients <= airdrop_account.recipients_range[7]{
+        //     multiplier = 4;
         // }
 
-        // if fee < ctx.accounts.airdrop_account.airdropFee*multiplier {
-        //     return Err(ErrorCode::WrongAmount.into())
-        // };
+        if multiplier == 0{
+            return Err(ErrorCode::WrongRecipients.into())            
+        }
+
+        if fee_amount >= airdrop_account.airdrop_fee * multiplier {
+            return Err(ErrorCode::WrongFee.into())
+        }
 
         let cpi_accounts = Transfer {
             from: ctx.accounts.payer_token_account.to_account_info(),
@@ -110,7 +125,7 @@ pub mod multi_airdrop {
 
         let cpi_program = ctx.accounts.token_program.to_account_info().clone();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)?;
+        token::transfer(cpi_ctx, fee_amount)?;
 
         invoke(
             &close_account(
@@ -129,8 +144,8 @@ pub mod multi_airdrop {
         )?;
         Ok(())
     }
-}
 
+}
 #[derive(Accounts)]
 pub struct InitialAirdrop<'info> {
     #[account(
@@ -152,13 +167,76 @@ pub struct InitialAirdrop<'info> {
     )]
     pub payer: Signer<'info>,
     pub payment_mint: Account<'info, Mint>,
-    pub authority: AccountInfo<'info>,
     #[account(address = token::ID)]
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct ChangeAirdrop<'info> {
+    #[account(
+        mut,
+    //    has_one = pool_sol, why error ????
+        has_one = airdrop_signer,
+        seeds = [b"token_airdrop".as_ref(), airdrop_mint.key().as_ref()],
+        bump,
+    )]
+    pub airdrop: Loader<'info, AirdropAccount>,
+    #[account(
+        seeds = [airdrop.key().as_ref()],
+        bump,
+    )]
+    pub airdrop_signer: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        address = airdrop.load()?.airdrop_mint,
+        constraint = airdrop_mint.mint_authority == COption::Some(*airdrop_signer.key),
+    )]
+    pub airdrop_mint: Account<'info, Mint>,
+
+    #[account(
+        mut,
+        address = airdrop_publishing_account::ID
+    )]
+    pub distribution_authority: Signer<'info>,
+}
+
+// #[derive(Accounts)]
+// pub struct WithdrawAirdrop<'info> {
+//     #[account(
+//         mut,
+//         has_one = airdrop_signer,
+//         has_one = pool_sol,
+//         seeds = [b"token_airdrop".as_ref(), airdrop.load()?.airdrop_mint.as_ref()],
+//         bump = airdorp.load()?.bumps.release,
+//     )]
+//     pub airdrop: Loader<'info, AirdropAccount>,
+    
+// //    below meaning ??????????????????????
+//     #[account(
+//         seeds = [airdrop.to_account_info().key.as_ref()],
+//         bump = airdrop.load()?.bumps.signer,
+//     )]
+//     pub airdrop_signer: AccountInfo<'info>,
+//     #[account(mut,
+//         constraint = pool_sol.owner == *pool_signer.to_account_info().key,
+//         constraint = pool_sol.mint == airdrop.load()?.payment_mint,
+//     )]
+//     pub pool_sol: Account<'info, TokenAccount>,
+       
+//     #[account(signer,
+//         address = airdrop_publishing_account::ID)]
+//     pub distribution_authority: AccountInfo<'info>,
+
+//     #[account(mut, constraint = creator_sol.owner == airdrop.load()?.recipients)]
+//     pub creator_sol: Account<'info, TokenAccount>,
+//     #[account(constraint = token_program.key == &token::ID)]
+//     pub token_program: AccountInfo<'info>,
+// }
+
+
+//enable constraint
 #[derive(Accounts)]
 pub struct SendWrapSol<'info> {
     pub payer: Signer<'info>,
@@ -199,66 +277,28 @@ pub struct SendWrapSol<'info> {
 
 }
 
-#[derive(Accounts)]
-pub struct SendToken<'info> {
-    pub payer: Signer<'info>,
-
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + 72
-    )]
-    pub multi_sender: ProgramAccount<'info, TransactionAccount>,
-
-    #[account(signer)]
-    pub distribution_authority: AccountInfo<'info>,
-
-    #[account(mut, constraint = creator_token_account.owner == *distribution_authority.key)]
-    pub creator_token_account: Account<'info, TokenAccount>,
-
-    #[account(mut)]
-    pub receiver_authority: AccountInfo<'info>,
-
-    #[account(mut, 
-        constraint = taker_token_account.owner == *receiver_authority.key
-    )]
-    pub taker_token_account: Account<'info, TokenAccount>,
-    
-    #[account(constraint = token_program.key == &token::ID)]
-    pub token_program: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-
-
-
 #[account(zero_copy)]
 #[derive(Default)]
 pub struct AirdropAccount {
     pub royalty_token_account: Pubkey,
     pub airdrop_signer: Pubkey,
     pub airdrop_mint: Pubkey,
-    pub authority: Pubkey,
+    pub fee_recipient: Pubkey,
     pub payment_mint: Pubkey,
     pub royalty_amount: u64,
     pub bump: AirdropBumps,
     pub airdrop_fee: u64,
-    //pub recipientsRange: Vec[u32,8],
-}
-#[account]
-pub struct TransactionAccount {
-    pub mint: Pubkey,
-    pub owner: Pubkey,
-    pub amount: u64,
+    pub recipients_range: [u16; 8],
 }
 
 #[error]
 pub enum ErrorCode {
     #[msg("Request TokenAmount must little small than total Amount of account")]
     LowTokenAmount,
-    #[msg("Request Sending Fee is low")]
-    WrongAmount,
+    #[msg("Recipients must be bigger than zero.")]
+    WrongRecipients,    
+    #[msg("Request Sending Fee is low than standard")]
+    WrongFee,
     #[msg("Restricted not owner")]
     NotOwner,
 }
@@ -268,33 +308,3 @@ pub struct AirdropBumps {
     pub release: u8,
     pub signer: u8,
 }
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
-pub struct TransactionData {
-    pub mint: Pubkey,
-    pub owner: Pubkey,
-    pub amount: u64,
-}
-
-// #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-// pub struct TransactionAccount {
-//     /// The mint associated with this account
-//     pub mint: Pubkey,
-//     /// The owner of this account.
-//     pub owner: Pubkey,
-//     /// The amount of tokens this account holds.
-//     pub amount: u64
-//     /// If `delegate` is `Some` then `delegated_amount` represents
-//     /// the amount authorized by the delegate
-// //    pub delegate: COption<Pubkey>,
-//     /// The account's state
-// //    pub state: AccountState,
-//     /// If is_some, this is a native token, and the value logs the rent-exempt reserve. An Account
-//     /// is required to be rent-exempt, so the value is used by the Processor to ensure that wrapped
-//     /// SOL accounts do not drop below this threshold.
-// //    pub is_native: COption<u64>,
-//     /// The amount delegated
-// //    pub delegated_amount: u64,
-//     /// Optional authority to close the account.
-// //    pub close_authority: COption<Pubkey>,
-// }

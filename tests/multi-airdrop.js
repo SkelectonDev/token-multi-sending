@@ -149,11 +149,12 @@ describe("airdrop", () => {
   // These are all variables the client will have to create to initialize the
   // IDO pool
 
+  let airdropMintIx;
   it("Initalize Airdrop", async () => {
 
     const paymentMint = wrappedSolMint;
     airdropMint = anchor.web3.Keypair.generate();
-    const airdropMintIx = await createMintInstructions(
+    airdropMintIx = await createMintInstructions(
       provider,
       provider.wallet.publicKey,
       airdropMint.publicKey,
@@ -225,183 +226,144 @@ describe("airdrop", () => {
     );
 
     const releaseAfter = await program.account.airdropAccount.fetch(airdrop);
-    //console.log("++++++++ fee : ",releaseAfter.airdropFee);
+    console.log("++++++++ fee : ",releaseAfter.airdropFee);
   });
 
-  it("send SOL", async () => {
-    const solBeforeBalance = await provider.connection.getBalance(sender.publicKey);
-    let airdrop_fee = 500000000;
-
-      let amount = 1;
-      const mintPublicKey = watermelonMint;
-      const mintToken = new Token(
-        provider.connection,
-        mintPublicKey,
-        TOKEN_PROGRAM_ID,
-        provider.wallet.publicKey // the wallet owner will pay to transfer and to create recipients associated token account if it does not yet exist.
-      );
-      
-    creators_watermelon_account = await getTokenAccount(
-      provider,
-      creatorWatermelonTokenAccount
-    );
-    receiver_watermelon_account = await getTokenAccount(
-      provider,
-      taker1WatermelonTokenAccount
-    );
-    receiver1_watermelon_account = await getTokenAccount(
-      provider,
-      taker2WatermelonTokenAccount
-    );
-
-    console.log("before creator amount" + creators_watermelon_account.amount + " receiver amount : " + receiver_watermelon_account.amount + "// anouther" + receiver1_watermelon_account.amount);
-
-      const fromTokenAccount = await mintToken.getOrCreateAssociatedAccountInfo(
-        sender.publicKey
-      );
-      let solAfterBalance = await provider.connection.getBalance(sender.publicKey);
-
-      const destPublicKey = taker1.publicKey;
-      //new web3.PublicKey(to);
-
-      // Get the derived address of the destination wallet which will hold the custom token
-      // const associatedDestinationTokenAddr = await Token.getAssociatedTokenAddress(
-      //   mintToken.associatedProgramId,
-      //   mintToken.programId,
-      //   mintPublicKey,
-      //   taker1.publicKey
-      // );
-      
-      // const associatedDestinationTokenAddr = await Token.getAssociatedTokenAddress(
-      //   mintToken.associatedProgramId,
-      //   mintToken.programId,
-      //   mintPublicKey,
-      //   taker1.publicKey
-      // );
-      //const receiverAccount = await provider.connection.getAccountInfo(associatedDestinationTokenAddr);
-      //const royalty = await provider.connection.getAccountInfo(taker1WatermelonTokenAccount);
-      receiverAccount = await getTokenAccount(
-        provider,
-        //associatedDestinationTokenAddr,
-        taker1WatermelonTokenAccount
-      );  
-      
-      // console.log(taker1.publicKey);
-      // console.log(receiverAccount);      
-      const instructions_1 = [];  
-
-      if (receiverAccount === null) {
-
-        instructions_1.push(
-          Token.creatAssociatedTokenAccountInstruction(
-            mintToken.associatedProgramId,
-            mintToken.programId,
-            mintPublicKey,
-            associatedDestinationTokenAddr,
-            destPublicKey,
-            provider.wallet.publicKey
-          )
-        )
-      }
-      for(var i=0;i<25;i++){
-        instructions_1.push(
-          Token.createTransferInstruction(
-            TOKEN_PROGRAM_ID,
-            fromTokenAccount.address,
-            taker1WatermelonTokenAccount,
-            sender.publicKey,
-            [],
-            amount
-          )
-        );
-      }
-      instructions_1.push(
-        Token.createTransferInstruction(
-          TOKEN_PROGRAM_ID,
-          fromTokenAccount.address,
-          taker2WatermelonTokenAccount,
-          sender.publicKey,
-          [],
-          amount
-        )
-      );
-      const transaction = new anchor.web3.Transaction().add(...instructions_1);
-      transaction.feePayer = provider.wallet.publicKey;
-      transaction.recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
-
-
-
-    const {instructions, signers} = await wrapSol(
-      provider,
-      sender,
-      new anchor.BN(airdrop_fee),
-    );
-//    console.log("before sol : ",solBeforeBalance);
-    await program.rpc.sendWrapSol(
-      new anchor.BN(airdrop_fee), {
+  it("Update config by user", async () => {
+    let airdropBefore = await program.account.airdropAccount.fetch(airdrop);
+    
+    airdropBefore.recipientsRange[0] = 450;
+    
+    console.log(program.programId);
+    await program.rpc.changeConfig(
+      new anchor.BN(40),
+      //sender.publicKey,
+      //airdropBefore.recipients_range,
+      {
         accounts: {
           airdrop,
-          airdropMint: airdropMint.publicKey,
           airdropSigner,
-          payer: sender.publicKey,
-          payerTokenAccount: signers[0].publicKey,
-          poolSol: royaltySolTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
+          airdropMint: airdropMint.publicKey,
+          distributionAuthority: provider.wallet.publicKey,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-         },
-        signers: [sender, ...signers],
-        instructions: [
-         ...instructions,
-         ...instructions_1
-        ],
+        },
+        signers: [provider.wallet.payer]
       }
     );
 
-     solAfterBalance = await provider.connection.getBalance(sender.publicKey);
-    const royaltyTokenAccountAfter = await getTokenAccount(
-      provider,
-      royaltySolTokenAccount,
-    );
-    console.log("after sol : " + solAfterBalance + "after royalty: " + royaltyTokenAccountAfter.amount.toNumber());
- 
-
-    assert.equal(solAfterBalance, solBeforeBalance - airdrop_fee);
-
-    //const airdropAfter = await program.account.airdrop_account.fetch(airdrop);
-    assert.equal(royaltyTokenAccountAfter.amount.toNumber(), airdrop_fee);
-
-    
-    creators_watermelon_account = await getTokenAccount(
-      provider,
-      creatorWatermelonTokenAccount
-    );
-    //assert.ok(creators_watermelon_account.amount.eq(new anchor.BN(300)));
-
-    receiver_watermelon_account = await getTokenAccount(
-      provider,
-      taker1WatermelonTokenAccount
-    );
-
-    receiver1_watermelon_account = await getTokenAccount(
-      provider,
-      taker2WatermelonTokenAccount
-    );
-
-//    assert.ok(receiver_watermelon_account.amount.eq(new anchor.BN(50)));
-
-    console.log("after creator amount" + creators_watermelon_account.amount + " receiver amount : " + receiver_watermelon_account.amount + " 2 : " + receiver1_watermelon_account.amount);
-
+    const airdropAfter = await program.account.airdropAccount.fetch(airdrop);
+    console.log(airdropAfter.airdrop_fee + "/" + airdropAfter.fee_recipient + "/" + airdropAfter.recipients_range[0]);
   });
-  // it("Send Wrap SOL", async () => {
 
+
+  // it("send SOL", async () => {
   //   const solBeforeBalance = await provider.connection.getBalance(sender.publicKey);
   //   let airdrop_fee = 500000000;
+
+  //     let amount = [50,150];
+  //     const mintPublicKey = watermelonMint;
+  //     const mintToken = new Token(
+  //       provider.connection,
+  //       mintPublicKey,
+  //       TOKEN_PROGRAM_ID,
+  //       provider.wallet.publicKey // the wallet owner will pay to transfer and to create recipients associated token account if it does not yet exist.
+  //     );
+      
+  //   creators_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     creatorWatermelonTokenAccount
+  //   );
+  //   receiver_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     taker1WatermelonTokenAccount
+  //   );
+  //   receiver1_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     taker2WatermelonTokenAccount
+  //   );
+
+  //   console.log("before creator amount" + creators_watermelon_account.amount + " receiver amount : " + receiver_watermelon_account.amount + "// anouther" + receiver1_watermelon_account.amount);
+
+  //     const fromTokenAccount = await mintToken.getOrCreateAssociatedAccountInfo(
+  //       sender.publicKey
+  //     );
+  //     let solAfterBalance = await provider.connection.getBalance(sender.publicKey);
+
+  //     const destPublicKey = taker1.publicKey;
+  //     //new web3.PublicKey(to);
+
+  //     // Get the derived address of the destination wallet which will hold the custom token
+  //     // const associatedDestinationTokenAddr = await Token.getAssociatedTokenAddress(
+  //     //   mintToken.associatedProgramId,
+  //     //   mintToken.programId,
+  //     //   mintPublicKey,
+  //     //   taker1.publicKey
+  //     // );
+      
+  //     // const associatedDestinationTokenAddr = await Token.getAssociatedTokenAddress(
+  //     //   mintToken.associatedProgramId,
+  //     //   mintToken.programId,
+  //     //   mintPublicKey,
+  //     //   taker1.publicKey
+  //     // );
+  //     //const receiverAccount = await provider.connection.getAccountInfo(associatedDestinationTokenAddr);
+  //     //const royalty = await provider.connection.getAccountInfo(taker1WatermelonTokenAccount);
+  //     receiverAccount = await getTokenAccount(
+  //       provider,
+  //       //associatedDestinationTokenAddr,
+  //       taker1WatermelonTokenAccount
+  //     );  
+      
+  //     // console.log(taker1.publicKey);
+  //     // console.log(receiverAccount);      
+  //     const instructions_1 = [];  
+
+  //     if (receiverAccount === null) {
+
+  //       instructions_1.push(
+  //         Token.creatAssociatedTokenAccountInstruction(
+  //           mintToken.associatedProgramId,
+  //           mintToken.programId,
+  //           mintPublicKey,
+  //           associatedDestinationTokenAddr,
+  //           destPublicKey,
+  //           provider.wallet.publicKey
+  //         )
+  //       )
+
+  //     }
+      
+  //     instructions_1.push(
+  //       Token.createTransferInstruction(
+  //         TOKEN_PROGRAM_ID,
+  //         fromTokenAccount.address,
+  //         taker1WatermelonTokenAccount,
+  //         sender.publicKey,
+  //         [],
+  //         amount[0]
+  //       )
+  //     );
+  //     instructions_1.push(
+  //       Token.createTransferInstruction(
+  //         TOKEN_PROGRAM_ID,
+  //         fromTokenAccount.address,
+  //         taker2WatermelonTokenAccount,
+  //         sender.publicKey,
+  //         [],
+  //         amount[1]
+  //       )
+  //     );
+  //     const transaction = new anchor.web3.Transaction().add(...instructions_1);
+  //     transaction.feePayer = provider.wallet.publicKey;
+  //     transaction.recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
+
+
+
   //   const {instructions, signers} = await wrapSol(
   //     provider,
   //     sender,
   //     new anchor.BN(airdrop_fee),
   //   );
-  //   console.log("before sol : ",solBeforeBalance);
   //   await program.rpc.sendWrapSol(
   //     new anchor.BN(airdrop_fee), {
   //       accounts: {
@@ -417,22 +379,76 @@ describe("airdrop", () => {
   //       signers: [sender, ...signers],
   //       instructions: [
   //        ...instructions,
+  //        ...instructions_1
   //       ],
   //     }
   //   );
 
-  //   const solAfterBalance = await provider.connection.getBalance(sender.publicKey);
+  //    solAfterBalance = await provider.connection.getBalance(sender.publicKey);
   //   const royaltyTokenAccountAfter = await getTokenAccount(
   //     provider,
   //     royaltySolTokenAccount,
   //   );
   //   console.log("after sol : " + solAfterBalance + "after royalty: " + royaltyTokenAccountAfter.amount.toNumber());
- 
+
 
   //   assert.equal(solAfterBalance, solBeforeBalance - airdrop_fee);
 
   //   //const airdropAfter = await program.account.airdrop_account.fetch(airdrop);
   //   assert.equal(royaltyTokenAccountAfter.amount.toNumber(), airdrop_fee);
+
+    
+  //   creators_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     creatorWatermelonTokenAccount
+  //   );
+  //   assert.ok(creators_watermelon_account.amount.eq(new anchor.BN(250)));
+
+  //   receiver_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     taker1WatermelonTokenAccount
+  //   );
+
+  //   receiver1_watermelon_account = await getTokenAccount(
+  //     provider,
+  //     taker2WatermelonTokenAccount
+  //   );
+
+  //   assert.ok(receiver_watermelon_account.amount.eq(new anchor.BN(50)));
+
+  //   console.log("after creator amount" + creators_watermelon_account.amount + " receiver amount : " + receiver_watermelon_account.amount + " 2 : " + receiver1_watermelon_account.amount);
+
+  // });
+  // it("Withdraws SOL to the owner", async () => {
+
+  //   const solBefore = await provider.connection.getBalance(provider.wallet.publicKey);
+  //   // const {instructions, signers} = await wrapSol(
+  //   //   provider,
+  //   //   sender,
+  //   //   new anchor.BN(airdrop_fee),
+  //   // );
+  //   console.log("before sol : ",solBefore);
+  //   await program.rpc.withdrawNative(
+  //     {
+  //       accounts: {
+  //         airdrop,
+  //         airdropMint: airdropMint.publicKey,
+  //         airdropSigner,
+  //         poolSol: royaltySolTokenAccount,
+  //         distributionAuthority: provider.wallet.publicKey,
+  //         creatorSol: ownerSolTokenAccount,
+  //         tokenProgram: TOKEN_PROGRAM_ID,
+  //         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //        }
+  //     }
+  //   );
+
+  //   const solAfter = await provider.connection.getBalance(provider.wallet.publicKey);
+  //   royaltyTokenAccount = await getTokenAccount(
+  //     provider,
+  //     ownerSolTokenAccount,
+  //   );
+  //   console.log("after sol : " + solAfter + "after royalty: " + royaltyTokenAccount.amount.toNumber());
   // });
 
 });
